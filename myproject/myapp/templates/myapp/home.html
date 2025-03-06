@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>首頁</title>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 5px 0;
+        }
+        .container {
+            display: inline-block;
+            margin-top: 20px;
+        }
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background-color: white;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        form {
+            background-color: white;
+            padding: 20px;
+            border: 1px solid #ddd;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input[type="text"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+        }
+        .horizontal-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-around;
+            align-items: flex-start;
+            flex-wrap: nowrap; /* 修改為 nowrap 以避免覆蓋 */
+        }
+        .form-container, .table-container {
+            flex: 1;
+            margin: 10px;
+            max-width: 80vh; /* 設置最小寬度以避免覆蓋 */
+        }
+        form {
+            width: 100%;
+        }
+        table {
+            width: 100%;
+        }
+    </style>
+    {% load static %}
+</head>
+<body>
+    <header>
+        <h1>歡迎, {{ user.username }}, 來到我的應用</h1>
+    </header>
+    <div style="padding: 10px;">
+        <button onclick="location.href='/logout'" style="font-size: 20px;">登出</button>
+    </div>
+    <br>
+    <div class="horizontal-container">
+        <div class="form-container">
+            <form id="create-form">
+                <h2>添加新項目</h2> <!-- 將標題移到表單內 -->
+                <label for="new-id">ID:</label> <!-- 新增 ID 欄位 -->
+                <input type="text" id="new-id" name="id" required pattern="\d+" title="ID 必須為數字">
+                <label for="new-name">名稱:</label>
+                <input type="text" id="new-name" name="name" required>
+                <label for="new-description">描述:</label>
+                <input type="text" id="new-description" name="description" required>
+                <button type="submit">新增</button>
+            </form>
+        </div>
+        <div class="table-container">
+            <table>
+                <caption style="font-size: 40px;font-weight: bold; padding: 10px;">SQL資料表</caption>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>名稱</th>
+                        <th>描述</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for list1 in list %}
+                    <tr>
+                        <td>{{ list1.id }}</td>
+                        <td>
+                            <input type="text" value="{{ list1.name }}" id="name-{{ list1.id }}">
+                        </td>
+                        <td>
+                            <input type="text" value="{{ list1.description }}" id="description-{{ list1.id }}">
+                        </td>
+                        <td>
+                            <button onclick="updateItem({{ list1.id }})">更新</button>
+                            <button onclick="deleteItem({{ list1.id }})">刪除</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        function updateItem(video_id) {
+        const name = document.getElementById(`name-${video_id}`).value;
+        const description = document.getElementById(`description-${video_id}`).value;
+
+        fetch('/update/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: `video_id=${video_id}&name=${name}&description=${description}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('更新成功');
+            } else {
+                alert('更新失敗: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('更新項目時發生錯誤。');
+        });
+    }
+
+    function deleteItem(video_id) {
+        fetch('/delete/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: `video_id=${video_id}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('刪除成功');
+                location.reload();
+            } else {
+                alert('刪除失敗: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('刪除項目時發生錯誤。');
+        });
+    }
+
+    document.getElementById('create-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const id = document.getElementById('new-id').value;  // 取得 ID
+        const name = document.getElementById('new-name').value;
+        const description = document.getElementById('new-description').value;
+
+        // 檢查 ID 是否重複
+        const existingIds = Array.from(document.querySelectorAll('tbody tr td:first-child')).map(td => td.textContent);
+        if (existingIds.includes(id)) {
+            alert('ID 重複，請輸入不同的 ID');
+            return;
+        }
+
+        fetch('/create/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: `id=${id}&name=${name}&description=${description}`  // 傳送 ID
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('新增成功');
+                location.reload();
+            } else {
+                alert('新增失敗: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('新增項目時發生錯誤。');
+        });
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+</body>
+</html>
